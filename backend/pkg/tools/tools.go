@@ -768,6 +768,98 @@ func (fte *flowToolsExecutor) Release(ctx context.Context) error {
 	return nil
 }
 
+// ---------------------------------------------------------------------------
+// Offensive toolkit wiring
+// ---------------------------------------------------------------------------
+
+// offensiveTier selects which offensive tools an executor context receives.
+type offensiveTier string
+
+const (
+	offensiveFull    offensiveTier = "full"    // pentester and delegated specialists: everything
+	offensiveCoder   offensiveTier = "coder"   // exploit development subset
+	offensivePrimary offensiveTier = "primary" // orchestration-level recon subset
+)
+
+// terminalFreeTools are offensive tools that run entirely in-process and do
+// not need the flow container.
+var terminalFreeTools = map[string]bool{
+	PayloadEngineToolName:   true,
+	RawHTTPToolName:         true,
+	SmuggleProbeToolName:    true,
+	ProxyStartToolName:      true,
+	ProxyHistoryToolName:    true,
+	ProxyStopToolName:       true,
+	ProxyIntruderToolName:   true,
+	DNSEnumToolName:         true,
+	ExploitFinderToolName:   true,
+	AttackSurfaceToolName:   true,
+	TechniqueLedgerToolName: true,
+}
+
+// attachOffensiveTools registers the offensive toolkit (Payload Engine v2,
+// raw HTTP, MITM proxy, DNS enumeration, exploit finder, attack surface
+// mapper, swarm execution, exploit validation, technique ledger) into an
+// executor's definitions/handlers according to the tier. Tools requiring the
+// flow container are skipped when no terminal handle is available.
+func (fte *flowToolsExecutor) attachOffensiveTools(
+	definitions []llms.FunctionDefinition,
+	handlers map[string]ExecutorHandler,
+	taskID, subtaskID *int64,
+	term Tool,
+	tier offensiveTier,
+) ([]llms.FunctionDefinition, map[string]ExecutorHandler) {
+	var names []string
+	switch tier {
+	case offensiveCoder:
+		names = []string{
+			PayloadEngineToolName,
+			RawHTTPToolName,
+			ProxyIntruderToolName,
+			SwarmAttackToolName,
+			ValidateExploitToolName,
+			TechniqueLedgerToolName,
+		}
+	case offensivePrimary:
+		names = []string{
+			DNSEnumToolName,
+			AttackSurfaceToolName,
+			ExploitFinderToolName,
+			PayloadEngineToolName,
+			SwarmAttackToolName,
+			TechniqueLedgerToolName,
+		}
+	default:
+		names = offensiveToolNames
+	}
+
+	// filter out container-dependent tools when no terminal is wired
+	var termImpl *terminal
+	if term != nil {
+		if t, ok := term.(*terminal); ok && t != nil {
+			termImpl = t
+		}
+	}
+	if termImpl == nil {
+		filtered := make([]string, 0, len(names))
+		for _, n := range names {
+			if terminalFreeTools[n] {
+				filtered = append(filtered, n)
+			}
+		}
+		names = filtered
+	}
+
+	off := NewOffensiveTools(fte.flowID, taskID, subtaskID, fte.cfg, termImpl)
+	for _, name := range names {
+		if def, ok := registryDefinitions[name]; ok {
+			definitions = append(definitions, def)
+			handlers[name] = off.Handle
+		}
+	}
+	return definitions, handlers
+}
+
 func (fte *flowToolsExecutor) GetCustomExecutor(cfg CustomExecutorConfig) (ContextToolsExecutor, error) {
 	if len(cfg.Definitions) != len(cfg.Handlers) {
 		return nil, fmt.Errorf("definitions and handlers must have the same length")
@@ -1066,6 +1158,11 @@ func (fte *flowToolsExecutor) GetPrimaryExecutor(cfg PrimaryExecutorConfig) (Con
 		ce.barriers[AskUserToolName] = struct{}{}
 	}
 
+	// offensive toolkit: recon subset for the primary agent (delegates the rest)
+	ce.definitions, ce.handlers = fte.attachOffensiveTools(
+		ce.definitions, ce.handlers, nil, nil, nil, offensivePrimary,
+	)
+
 	return ce, nil
 }
 
@@ -1290,6 +1387,11 @@ func (fte *flowToolsExecutor) GetCoderExecutor(cfg CoderExecutorConfig) (Context
 		ce.handlers[GraphitiSearchToolName] = graphitiSearch.Handle
 	}
 
+	// offensive toolkit: exploit-development subset for the coder agent
+	ce.definitions, ce.handlers = fte.attachOffensiveTools(
+		ce.definitions, ce.handlers, cfg.TaskID, cfg.SubtaskID, term, offensiveCoder,
+	)
+
 	return ce, nil
 }
 
@@ -1422,6 +1524,11 @@ func (fte *flowToolsExecutor) GetPentesterExecutor(cfg PentesterExecutorConfig) 
 		ce.definitions = append(ce.definitions, registryDefinitions[WebSearchToolName])
 		ce.handlers[WebSearchToolName] = webSearch.Handle
 	}
+
+	// offensive toolkit: full set for the pentester agent
+	ce.definitions, ce.handlers = fte.attachOffensiveTools(
+		ce.definitions, ce.handlers, cfg.TaskID, cfg.SubtaskID, term, offensiveFull,
+	)
 
 	return ce, nil
 }

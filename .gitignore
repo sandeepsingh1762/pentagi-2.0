@@ -38,3 +38,7 @@ data/*
 # OS
 Thumbs.db
 
+
+# local sandbox build artifact
+backend/go.work
+go.work.sum

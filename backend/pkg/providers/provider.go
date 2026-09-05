@@ -685,6 +685,13 @@ func (fp *flowProvider) PrepareAgentChain(ctx context.Context, taskID, subtaskID
 		"CurrentTime":             getCurrentTime(),
 		"ToolPlaceholder":         ToolPlaceholder,
 		"UserFiles":               fp.userFilesListing(),
+		"PayloadEngineToolName":   tools.PayloadEngineToolName,
+		"DNSEnumToolName":         tools.DNSEnumToolName,
+		"ExploitFinderToolName":   tools.ExploitFinderToolName,
+		"AttackSurfaceToolName":   tools.AttackSurfaceToolName,
+		"SwarmAttackToolName":     tools.SwarmAttackToolName,
+		"ValidateExploitToolName": tools.ValidateExploitToolName,
+		"TechniqueLedgerToolName": tools.TechniqueLedgerToolName,
 	})
 	if err != nil {
 		logger.WithError(err).Error("failed to get system prompt for primary agent template")
