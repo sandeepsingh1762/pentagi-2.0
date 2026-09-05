@@ -3,6 +3,8 @@ package custom
 import (
 	"context"
 	"os"
+	"strings"
+	"sync/atomic"
 
 	"pentagi/pkg/config"
 	"pentagi/pkg/providers/pconfig"
@@ -13,6 +15,7 @@ import (
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
+	"gopkg.in/yaml.v3"
 )
 
 func BuildProviderConfig(cfg *config.Config, configData []byte) (*pconfig.ProviderConfig, error) {
@@ -49,12 +52,89 @@ func DefaultProviderConfig(cfg *config.Config) (*pconfig.ProviderConfig, error) 
 }
 
 type customProvider struct {
-	llm            *openai.LLM
+	clients        []*openai.LLM
+	next           atomic.Uint64
 	model          string
 	models         pconfig.ModelsConfig
 	providerName   provider.ProviderName
 	providerConfig *pconfig.ProviderConfig
 	providerPrefix string
+}
+
+// maxKeyFailoverAttempts caps how many pool keys a single non-streaming call
+// will try before giving up (prevents stalling when the whole pool is down).
+const maxKeyFailoverAttempts = 5
+
+// retryableKeyError reports whether err looks like a per-key quota/auth/
+// capacity problem worth retrying with the next pooled key.
+func retryableKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	for _, marker := range []string{
+		"429", "rate limit", "rate_limit", "ratelimit", "too many requests",
+		"401", "403", "forbidden", "unauthorized", "invalid api key", "incorrect api key",
+		"overloaded", "capacity", "insufficient", "quota", "402",
+		"500", "502", "503", "529",
+	} {
+		if strings.Contains(msg, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// client returns the next pooled LLM client (round-robin), spreading quota
+// usage across all configured keys.
+func (p *customProvider) client() *openai.LLM {
+	n := uint64(len(p.clients))
+	if n == 0 {
+		return nil
+	}
+	return p.clients[p.next.Add(1)%n]
+}
+
+// customEndpointOverride allows a saved (user) custom provider to point at its
+// own OpenAI-compatible endpoint instead of the global LLM_SERVER_* settings,
+// optionally with a pool of API keys that are used round-robin with failover
+// (e.g. many free-tier gateway keys behind one provider name).
+// Stored as top-level keys in the provider's config JSON; absent keys fall
+// back to the globals, so file-based configs keep working unchanged.
+type customEndpointOverride struct {
+	BaseURL string   `json:"base_url" yaml:"base_url"`
+	APIKey  string   `json:"api_key" yaml:"api_key"`
+	APIKeys []string `json:"api_keys" yaml:"api_keys"`
+	Model   string   `json:"model" yaml:"model"`
+}
+
+// resolveEndpoint returns the effective base URL, API keys and default model:
+// per-provider overrides from the stored raw config when present, globals
+// otherwise. The returned keys slice always has at least one entry.
+func resolveEndpoint(cfg *config.Config, providerConfig *pconfig.ProviderConfig) (string, []string, string) {
+	baseURL, baseModel := cfg.LLMServerURL, cfg.LLMServerModel
+	keys := []string{cfg.LLMServerKey}
+	if providerConfig == nil {
+		return baseURL, keys, baseModel
+	}
+	var override customEndpointOverride
+	if err := yaml.Unmarshal(providerConfig.GetRawConfig(), &override); err != nil {
+		return baseURL, keys, baseModel
+	}
+	if override.BaseURL != "" {
+		baseURL = override.BaseURL
+	}
+	// api_keys (pool) wins over api_key (single) when both are present.
+	switch {
+	case len(override.APIKeys) > 0:
+		keys = override.APIKeys
+	case override.APIKey != "":
+		keys = []string{override.APIKey}
+	}
+	if override.Model != "" {
+		baseModel = override.Model
+	}
+	return baseURL, keys, baseModel
 }
 
 func New(
@@ -65,6 +145,13 @@ func New(
 	baseKey := cfg.LLMServerKey
 	baseURL := cfg.LLMServerURL
 	baseModel := cfg.LLMServerModel
+	baseKeys := []string{baseKey}
+	// A saved user provider may carry its own endpoint and key pool (e.g. a
+	// second gateway like Kilo alongside the default OpenRouter one).
+	if providerConfig != nil {
+		baseURL, baseKeys, baseModel = resolveEndpoint(cfg, providerConfig)
+		baseKey = baseKeys[0]
+	}
 	httpClient, err := system.GetHTTPClient(cfg)
 	if err != nil {
 		return nil, err
@@ -87,9 +174,17 @@ func New(
 			openai.WithPreserveReasoningContent(),
 		)
 	}
-	client, err := openai.New(opts...)
-	if err != nil {
-		return nil, err
+	// One client per pooled key; calls rotate across them (see client()).
+	clients := make([]*openai.LLM, 0, len(baseKeys))
+	for _, key := range baseKeys {
+		keyOpts := make([]openai.Option, len(opts))
+		copy(keyOpts, opts)
+		keyOpts[0] = openai.WithToken(key)
+		client, err := openai.New(keyOpts...)
+		if err != nil {
+			return nil, err
+		}
+		clients = append(clients, client)
 	}
 
 	models, err := provider.LoadModelsFromHTTP(baseURL, baseKey, httpClient, cfg.LLMServerProvider)
@@ -98,7 +193,7 @@ func New(
 	}
 
 	return &customProvider{
-		llm:            client,
+		clients:        clients,
 		model:          baseModel,
 		models:         models,
 		providerName:   providerName,
@@ -150,10 +245,24 @@ func (p *customProvider) Call(
 	opt pconfig.ProviderOptionsType,
 	prompt string,
 ) (string, error) {
-	return provider.WrapGenerateFromSinglePrompt(
-		ctx, p, opt, p.llm, prompt,
-		p.providerConfig.GetOptionsForType(opt)...,
-	)
+	// Non-streaming: rotate keys and fail over to the next key on
+	// quota/auth/capacity errors, so one exhausted key never kills the call.
+	attempts := len(p.clients)
+	if attempts > maxKeyFailoverAttempts {
+		attempts = maxKeyFailoverAttempts
+	}
+	var err error
+	var result string
+	for i := 0; i < attempts; i++ {
+		result, err = provider.WrapGenerateFromSinglePrompt(
+			ctx, p, opt, p.client(), prompt,
+			p.providerConfig.GetOptionsForType(opt)...,
+		)
+		if err == nil || !retryableKeyError(err) {
+			return result, err
+		}
+	}
+	return result, err
 }
 
 func (p *customProvider) CallEx(
@@ -163,7 +272,7 @@ func (p *customProvider) CallEx(
 	streamCb streaming.Callback,
 ) (*llms.ContentResponse, error) {
 	return provider.WrapGenerateContent(
-		ctx, p, opt, p.llm.GenerateContent, chain,
+		ctx, p, opt, p.client().GenerateContent, chain,
 		append([]llms.CallOption{
 			llms.WithStreamingFunc(streamCb),
 		}, p.providerConfig.GetOptionsForType(opt)...)...,
@@ -178,7 +287,7 @@ func (p *customProvider) CallWithTools(
 	streamCb streaming.Callback,
 ) (*llms.ContentResponse, error) {
 	return provider.WrapGenerateContent(
-		ctx, p, opt, p.llm.GenerateContent, chain,
+		ctx, p, opt, p.client().GenerateContent, chain,
 		append([]llms.CallOption{
 			llms.WithTools(tools),
 			llms.WithStreamingFunc(streamCb),
@@ -202,7 +311,7 @@ func (p *customProvider) CallWithExtraOptions(
 	options = append(options, p.providerConfig.GetOptionsForType(opt)...)
 	options = append(options, extra...)
 
-	return provider.WrapGenerateContent(ctx, p, opt, p.llm.GenerateContent, chain, options...)
+	return provider.WrapGenerateContent(ctx, p, opt, p.client().GenerateContent, chain, options...)
 }
 
 func (p *customProvider) GetUsage(info map[string]any) pconfig.CallUsage {

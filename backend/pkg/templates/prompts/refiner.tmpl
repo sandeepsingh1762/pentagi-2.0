@@ -153,9 +153,10 @@ The refinement context is provided in XML format:
    - Consolidate lower-priority subtasks when necessary
 
 4. **Task Completion Detection**
-   - If **the user's original request from `<user_task><input>`** has been achieved or all essential subtasks completed successfully, return an empty subtask list
-   - If further progress toward the user's goal is impossible due to insurmountable obstacles, also return an empty list
-   - Include a clear explanation of completion status in your message
+    - If **the user's original request from `<user_task><input>`** has been achieved WITH PROOF (demonstrated shell/access/data, not scanner output) or all essential subtasks completed successfully, return an empty subtask list
+    - If further progress toward the user's goal is impossible due to insurmountable obstacles, also return an empty list — but only after verifying every realistic vector (network, web, auth, injection, upload, OOB, creds, public exploits for fingerprinted versions) is genuinely dead
+    - NEVER treat "recon complete", "vulnerabilities listed", or "report written" as completion — those are mid-chain states. On any successful foothold, ADD escalation/pivot/proof subtasks instead of closing
+    - Include a clear explanation of completion status in your message, opening with `OBJECTIVE ACHIEVED`, `OBJECTIVE PARTIAL`, or `OBJECTIVE BLOCKED`
 
 5. **Progressive Convergence Planning**
    - Ensure each subtask brings the solution measurably closer to completion

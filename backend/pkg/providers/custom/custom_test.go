@@ -1,9 +1,12 @@
 package custom
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 
 	"pentagi/pkg/config"
@@ -266,3 +269,122 @@ func TestProviderModelsIntegration(t *testing.T) {
 
 // TestPatchProviderConfigWithProviderName test removed - config patching is no longer used.
 // Prefix handling is now done at runtime via ModelWithPrefix() method.
+
+// TestKeyPoolFailover verifies round-robin key usage and failover: the first
+// pooled key gets a 429, the call must transparently succeed with the second.
+func TestKeyPoolFailover(t *testing.T) {
+	var mu sync.Mutex
+	seen := map[string]int{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		mu.Lock()
+		seen[key]++
+		mu.Unlock()
+		if r.URL.Path == "/models" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"data":[]}`)
+			return
+		}
+		if key == "KEY-A" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			fmt.Fprint(w, `{"error":{"message":"rate limit","type":"rate_limit"}}`)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"id":"x","object":"chat.completion","created":1,"model":"m","choices":[{"index":0,"message":{"role":"assistant","content":"hello"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`)
+	}))
+	defer srv.Close()
+
+	cfg := &config.Config{
+		LLMServerKey:   "global-key",
+		LLMServerURL:   "https://global.example/v1",
+		LLMServerModel: "m",
+	}
+	raw := fmt.Sprintf("base_url: %s\napi_keys: [KEY-A, KEY-B]\nmodel: m\nsimple:\n  model: m\n", srv.URL)
+	pc, err := pconfig.LoadConfigData([]byte(raw), nil)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+	prov, err := New(cfg, provider.DefaultProviderNameCustom, pc)
+	if err != nil {
+		t.Fatalf("failed to create provider: %v", err)
+	}
+	cp, ok := prov.(*customProvider)
+	if !ok {
+		t.Fatalf("unexpected provider type %T", prov)
+	}
+	if len(cp.clients) != 2 {
+		t.Fatalf("expected 2 pooled clients, got %d", len(cp.clients))
+	}
+
+	result, err := prov.Call(context.Background(), pconfig.OptionsTypeSimple, "hi")
+	if err != nil {
+		t.Fatalf("call failed despite healthy failover key: %v", err)
+	}
+	if !strings.Contains(result, "hello") {
+		t.Errorf("expected failover reply 'hello', got %q", result)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if seen["KEY-A"] == 0 || seen["KEY-B"] == 0 {
+		t.Errorf("expected both keys to be tried, got %v", seen)
+	}
+}
+
+func TestResolveEndpoint(t *testing.T) {
+	cfg := &config.Config{
+		LLMServerKey:   "global-key",
+		LLMServerURL:   "https://global.example/v1",
+		LLMServerModel: "global-model",
+	}
+
+	mustConfig := func(t *testing.T, raw string) *pconfig.ProviderConfig {
+		t.Helper()
+		pc, err := pconfig.LoadConfigData([]byte(raw), nil)
+		if err != nil {
+			t.Fatalf("failed to load config: %v", err)
+		}
+		return pc
+	}
+
+	t.Run("globals when no override keys", func(t *testing.T) {
+		pc := mustConfig(t, "simple:\n  model: global-model\n")
+		url, keys, model := resolveEndpoint(cfg, pc)
+		if url != cfg.LLMServerURL || model != cfg.LLMServerModel {
+			t.Errorf("expected globals, got %q %q", url, model)
+		}
+		if len(keys) != 1 || keys[0] != cfg.LLMServerKey {
+			t.Errorf("expected single global key, got %q", keys)
+		}
+	})
+
+	t.Run("per-provider override wins", func(t *testing.T) {
+		pc := mustConfig(t, "base_url: https://api.kilo.ai/api/gateway\napi_key: kilo-key\nmodel: minimax/minimax-m3\nsimple:\n  model: minimax/minimax-m3\n")
+		url, keys, model := resolveEndpoint(cfg, pc)
+		if url != "https://api.kilo.ai/api/gateway" || model != "minimax/minimax-m3" {
+			t.Errorf("expected override, got %q %q", url, model)
+		}
+		if len(keys) != 1 || keys[0] != "kilo-key" {
+			t.Errorf("expected single override key, got %q", keys)
+		}
+	})
+
+	t.Run("key pool parsed", func(t *testing.T) {
+		pc := mustConfig(t, "base_url: https://x.example/v1\napi_keys: [k1, k2, k3]\n")
+		url, keys, _ := resolveEndpoint(cfg, pc)
+		if url != "https://x.example/v1" || len(keys) != 3 || keys[0] != "k1" || keys[2] != "k3" {
+			t.Errorf("expected 3-key pool, got %q %q", url, keys)
+		}
+	})
+
+	t.Run("nil config falls back to globals", func(t *testing.T) {
+		url, keys, model := resolveEndpoint(cfg, nil)
+		if url != cfg.LLMServerURL || model != cfg.LLMServerModel {
+			t.Errorf("expected globals, got %q %q", url, model)
+		}
+		if len(keys) != 1 || keys[0] != cfg.LLMServerKey {
+			t.Errorf("expected single global key, got %q", keys)
+		}
+	})
+}

@@ -150,11 +150,12 @@ Each subtask MUST:
    - After selecting the best approach, focus on implementation with measurable progress
    - Include validation steps and convergence checkpoints throughout
 
-2. **Special Case: Penetration Testing**
-   - Prioritize reconnaissance and information gathering early
-   - Include explicit vulnerability identification phases
-   - Consider both automated tools and manual verification
-   - Incorporate proper documentation throughout
+2. **Special Case: Penetration Testing — plan KILL CHAINS, not checklists**
+    - Structure every plan as an attack chain: recon → initial access → PROOF of compromise → privilege escalation → credential harvest → pivot/lateral movement → OBJECTIVE. Recon exists to aim the strike, never as an end state.
+    - Every plan MUST include explicit proof subtasks (demonstrate the shell, dump the data, capture the evidence) — a plan that ends at "identify vulnerabilities" is a failed plan; extend it through exploitation and proof.
+    - Include privesc and pivot subtasks by default after any expected foothold; include custom-exploit-development subtasks (coder) wherever public PoCs may need adaptation.
+    - Prioritize reconnaissance and information gathering early — but cap it: once the surface is mapped, the plan must STRIKE.
+    - Incorporate proper evidence capture throughout (commands + outputs that prove each compromise).
 
 ## TASK PLANNING STRATEGIES
 

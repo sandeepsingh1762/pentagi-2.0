@@ -90,7 +90,11 @@ RUN mkdir -p /licenses/backend && \
     GOROOT=$(go env GOROOT) GOTOOLCHAIN=auto go-licenses csv ./cmd/pentagi > /licenses/backend/licenses.csv 2>/dev/null || true
 
 # Compile main application binary with embedded version metadata
-RUN go build -trimpath \
+# (module + build caches are mounted so rebuilds reuse the warmed cache instead
+# of re-downloading every dependency on each source change)
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath \
     -ldflags "\
         -X pentagi/pkg/version.PackageName=pentagi \
         -X pentagi/pkg/version.PackageVer=${PACKAGE_VER} \
@@ -98,7 +102,9 @@ RUN go build -trimpath \
     -o /pentagi ./cmd/pentagi
 
 # Build ctester utility
-RUN go build -trimpath \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath \
     -ldflags "\
         -X pentagi/pkg/version.PackageName=ctester \
         -X pentagi/pkg/version.PackageVer=${PACKAGE_VER} \
@@ -106,7 +112,9 @@ RUN go build -trimpath \
     -o /ctester ./cmd/ctester
 
 # Build ftester utility
-RUN go build -trimpath \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath \
     -ldflags "\
         -X pentagi/pkg/version.PackageName=ftester \
         -X pentagi/pkg/version.PackageVer=${PACKAGE_VER} \
@@ -114,7 +122,9 @@ RUN go build -trimpath \
     -o /ftester ./cmd/ftester
 
 # Build etester utility
-RUN go build -trimpath \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath \
     -ldflags "\
         -X pentagi/pkg/version.PackageName=etester \
         -X pentagi/pkg/version.PackageVer=${PACKAGE_VER} \

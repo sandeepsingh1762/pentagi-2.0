@@ -1,0 +1,180 @@
+# OpenRouter + MiniMax M3 (free) agent configuration.
+#
+# All agents route through minimax/minimax-m3:free ($0 in / $0 out) via
+# https://openrouter.ai/api/v1 (OpenAI-compatible). Set in .env:
+#   LLM_SERVER_URL=https://openrouter.ai/api/v1
+#   LLM_SERVER_KEY=<your openrouter key>
+#   LLM_SERVER_MODEL=minimax/minimax-m3:free
+#   LLM_SERVER_PROVIDER=   (leave empty = no prefix filtering)
+#
+# NOTE: OpenRouter free endpoints are rate-limited, so long pentest flows may
+# hit limits. Add credits / use the paid minimax/minimax-m3 endpoint for
+# serious work.
+#
+# MiniMax uses hybrid thinking controlled via extra_body.thinking.type
+# (adaptive/disabled), forwarded verbatim by OpenRouter. Fast utility agents
+# use the generic `reasoning: {mode: off}` instead.
+
+simple:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  n: 1
+  max_tokens: 4096
+  reasoning:
+    mode: off
+  price:
+    input: 0.0
+    output: 0.0
+
+simple_json:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  n: 1
+  max_tokens: 4096
+  json: true
+  reasoning:
+    mode: off
+  price:
+    input: 0.0
+    output: 0.0
+
+primary_agent:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  extra_body:
+    thinking:
+      type: adaptive
+  price:
+    input: 0.0
+    output: 0.0
+
+assistant:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  extra_body:
+    thinking:
+      type: adaptive
+  price:
+    input: 0.0
+    output: 0.0
+
+generator:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  extra_body:
+    thinking:
+      type: adaptive
+  price:
+    input: 0.0
+    output: 0.0
+
+refiner:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  extra_body:
+    thinking:
+      type: adaptive
+  price:
+    input: 0.0
+    output: 0.0
+
+adviser:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  extra_body:
+    thinking:
+      type: adaptive
+  price:
+    input: 0.0
+    output: 0.0
+
+reflector:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  n: 1
+  max_tokens: 4096
+  reasoning:
+    mode: off
+  price:
+    input: 0.0
+    output: 0.0
+
+searcher:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  n: 1
+  max_tokens: 4096
+  reasoning:
+    mode: off
+  price:
+    input: 0.0
+    output: 0.0
+
+enricher:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 8192
+  extra_body:
+    thinking:
+      type: disabled
+  reasoning:
+    mode: off
+  price:
+    input: 0.0
+    output: 0.0
+
+coder:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  extra_body:
+    thinking:
+      type: adaptive
+  price:
+    input: 0.0
+    output: 0.0
+
+installer:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  extra_body:
+    thinking:
+      type: adaptive
+  price:
+    input: 0.0
+    output: 0.0
+
+pentester:
+  model: "minimax/minimax-m3:free"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  extra_body:
+    thinking:
+      type: adaptive
+  price:
+    input: 0.0
+    output: 0.0
