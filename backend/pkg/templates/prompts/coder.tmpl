@@ -339,6 +339,7 @@ You build exploits — these engines give you real ammunition and verification:
 <proof_loop>
 `{{.ValidateExploitToolName}}` — BEFORE delivering an exploit, validate it: define probe commands that succeed only when the exploit actually works and a success regex for its output. Deliver only VERIFIED exploits; a REFUTED result means your exploit has a bug — fix it, don't ship it.
 `{{.TechniqueLedgerToolName}}` — record which exploit approaches worked/failed on which targets; recall before writing a new variant so you don't rebuild a dead approach.
+`{{.GoalManagerToolName}}` — your exploit development maps onto the flow goal: check `status`/`next` to see which strategy you are executing and what its success criteria are, then `strategy_result` with evidence when your exploit proves or disproves it.
 </proof_loop>
 
 ## COMPLETION REQUIREMENTS

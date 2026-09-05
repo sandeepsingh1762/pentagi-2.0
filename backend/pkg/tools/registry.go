@@ -130,6 +130,11 @@ var toolsTypeMapping = map[string]ToolType{
 	SwarmAttackToolName:        EnvironmentToolType,
 	ValidateExploitToolName:    EnvironmentToolType,
 	TechniqueLedgerToolName:    StoreVectorDbToolType,
+	WebSessionToolName:         EnvironmentToolType,
+	InjectionHuntToolName:      EnvironmentToolType,
+	AuthAttackToolName:         EnvironmentToolType,
+	WAFDetectToolName:          EnvironmentToolType,
+	GoalManagerToolName:        StoreAgentResultToolType,
 	SearchToolName:             AgentToolType,
 	SearchResultToolName:       StoreAgentResultToolType,
 	EnricherResultToolName:     StoreAgentResultToolType,
@@ -575,6 +580,49 @@ var registryDefinitions = map[string]llms.FunctionDefinition{
 			"HARD RULE: never repeat a failed or blocked technique without a materially different angle; " +
 			"always check recall first and record every attempt after.",
 		Parameters: reflector.Reflect(&TechniqueLedgerAction{}),
+	},
+	WebSessionToolName: {
+		Name: WebSessionToolName,
+		Description: "Stateful web session: start a cookie-jar session on an origin, login once (form or JSON), and every " +
+			"subsequent request carries the session — the foundation for AUTHENTICATED web testing. inspect shows held " +
+			"cookies with a security audit (flags, entropy, session detection). Pass the session id to injection_hunt " +
+			"for logged-in attack surface. Always test authenticated areas — that is where the real target state lives.",
+		Parameters: reflector.Reflect(&WebSessionAction{}),
+	},
+	InjectionHuntToolName: {
+		Name: InjectionHuntToolName,
+		Description: "Automated injection hunter: for each parameter it fires the payload category (sqli default; also " +
+			"ssti, xss, nosql, cmd_injection...) and classifies responses against a baseline via error signatures " +
+			"(MySQL/Postgres/MSSQL/Oracle/SQLite/PHP/Jinja/Twig/...), reflection, boolean differential (true vs false " +
+			"payload pairs), and timing. Use attack_surface output as the input list. Feed the session_id for " +
+			"authenticated endpoints. Any signal is a foothold candidate — confirm with raw_http and validate_exploit, then escalate.",
+		Parameters: reflector.Reflect(&InjectionHuntAction{}),
+	},
+	AuthAttackToolName: {
+		Name: AuthAttackToolName,
+		Description: "Authentication attack toolkit: brute (credential attack with built-in or custom lists, password-spray " +
+			"mode, lockout detection), jwt_decode (parse + risk analysis), jwt_tamper (alg:none, claim escalation, exp " +
+			"removal, kid injection variants ready to replay), cookie_audit (session cookie flags/entropy). " +
+			"Default to password spraying (username_static) before full brute; respect lockouts and rotate.",
+		Parameters: reflector.Reflect(&AuthAttackAction{}),
+	},
+	WAFDetectToolName: {
+		Name: WAFDetectToolName,
+		Description: "WAF/CDN fingerprinting: probes the target with benign + malicious requests and identifies " +
+			"Cloudflare, Akamai, Imperva, F5, AWS WAF, ModSecurity, Sucuri and others from response signatures. " +
+			"Run BEFORE injection hunts on internet-facing targets; if a WAF is detected, switch to mutation/WAF-evasion " +
+			"payloads and the suggested approaches.",
+		Parameters: reflector.Reflect(&WAFDetectAction{}),
+	},
+	GoalManagerToolName: {
+		Name: GoalManagerToolName,
+		Description: "The autonomous goal-achievement engine. define the goal + observable achievement criteria, queue " +
+			"strategies (>=5 across >=3 methodology families), execute, record strategy_result WITH evidence, verify " +
+			"criteria, then achieved (proof REQUIRED — the engine refuses unevidenced claims) or blocked (requires >=3 " +
+			"dead strategies across >=2 families — no premature surrender). 'next' always returns the next pending " +
+			"strategy; 'hint' lists untouched families when you run dry. This is the loop of record for the whole flow: " +
+			"every delegation you make should map to a strategy in it.",
+		Parameters: reflector.Reflect(&GoalManagerAction{}),
 	},
 }
 

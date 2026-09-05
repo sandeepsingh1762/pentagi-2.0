@@ -29,6 +29,11 @@ const (
 	SwarmAttackToolName     = "swarm_attack"
 	ValidateExploitToolName = "validate_exploit"
 	TechniqueLedgerToolName = "technique_ledger"
+	WebSessionToolName      = "web_session"
+	InjectionHuntToolName   = "injection_hunt"
+	AuthAttackToolName      = "auth_attack"
+	WAFDetectToolName       = "waf_detect"
+	GoalManagerToolName     = "goal_manager"
 )
 
 // offensiveToolNames lists every tool handled by offensiveTools.Handle.
@@ -46,6 +51,11 @@ var offensiveToolNames = []string{
 	SwarmAttackToolName,
 	ValidateExploitToolName,
 	TechniqueLedgerToolName,
+	WebSessionToolName,
+	InjectionHuntToolName,
+	AuthAttackToolName,
+	WAFDetectToolName,
+	GoalManagerToolName,
 }
 
 // offensiveTools implements the new offensive toolkit. One instance is
@@ -63,9 +73,10 @@ type offensiveTools struct {
 	ledger *techniqueLedger
 
 	// most recently started proxy engine ids per flow
-	proxyMu      sync.Mutex
-	lastProxyID  int
-	proxyEngines map[int]struct{}
+	proxyMu       sync.Mutex
+	lastProxyID   int
+	lastWebSession int64
+	proxyEngines  map[int]struct{}
 }
 
 // NewOffensiveTools wires the offensive toolkit for one executor context.
@@ -206,6 +217,46 @@ func (o *offensiveTools) Handle(ctx context.Context, name string, args json.RawM
 			return "", fmt.Errorf("failed to unmarshal technique_ledger action: %w", err)
 		}
 		return o.handleTechniqueLedger(ctx, action)
+
+	case WebSessionToolName:
+		var action WebSessionAction
+		if err := json.Unmarshal(args, &action); err != nil {
+			logger.WithError(err).Error("failed to unmarshal web_session action")
+			return "", fmt.Errorf("failed to unmarshal web_session action: %w", err)
+		}
+		return o.handleWebSession(ctx, action)
+
+	case InjectionHuntToolName:
+		var action InjectionHuntAction
+		if err := json.Unmarshal(args, &action); err != nil {
+			logger.WithError(err).Error("failed to unmarshal injection_hunt action")
+			return "", fmt.Errorf("failed to unmarshal injection_hunt action: %w", err)
+		}
+		return o.handleInjectionHunt(ctx, action)
+
+	case AuthAttackToolName:
+		var action AuthAttackAction
+		if err := json.Unmarshal(args, &action); err != nil {
+			logger.WithError(err).Error("failed to unmarshal auth_attack action")
+			return "", fmt.Errorf("failed to unmarshal auth_attack action: %w", err)
+		}
+		return o.handleAuthAttack(ctx, action)
+
+	case WAFDetectToolName:
+		var action WAFDetectAction
+		if err := json.Unmarshal(args, &action); err != nil {
+			logger.WithError(err).Error("failed to unmarshal waf_detect action")
+			return "", fmt.Errorf("failed to unmarshal waf_detect action: %w", err)
+		}
+		return o.handleWAFDetect(ctx, action)
+
+	case GoalManagerToolName:
+		var action GoalManagerAction
+		if err := json.Unmarshal(args, &action); err != nil {
+			logger.WithError(err).Error("failed to unmarshal goal_manager action")
+			return "", fmt.Errorf("failed to unmarshal goal_manager action: %w", err)
+		}
+		return o.handleGoalManager(ctx, action)
 
 	default:
 		return "", fmt.Errorf("unknown offensive tool: %s", name)

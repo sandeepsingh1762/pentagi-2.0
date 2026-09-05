@@ -303,6 +303,7 @@ func (fp *flowProvider) GetCoderHandler(ctx context.Context, taskID, subtaskID *
 				"SwarmAttackToolName":     tools.SwarmAttackToolName,
 				"ValidateExploitToolName": tools.ValidateExploitToolName,
 				"TechniqueLedgerToolName": tools.TechniqueLedgerToolName,
+				"GoalManagerToolName":     tools.GoalManagerToolName,
 			},
 		}
 
@@ -655,6 +656,11 @@ func (fp *flowProvider) GetPentesterHandler(ctx context.Context, taskID, subtask
 				"ValidateExploitToolName": tools.ValidateExploitToolName,
 				"TechniqueLedgerToolName": tools.TechniqueLedgerToolName,
 				"SploitusToolName":        tools.SploitusToolName,
+				"WebSessionToolName":      tools.WebSessionToolName,
+				"InjectionHuntToolName":   tools.InjectionHuntToolName,
+				"AuthAttackToolName":      tools.AuthAttackToolName,
+				"WAFDetectToolName":       tools.WAFDetectToolName,
+				"GoalManagerToolName":     tools.GoalManagerToolName,
 			},
 		}
 

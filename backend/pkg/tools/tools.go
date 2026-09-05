@@ -795,6 +795,11 @@ var terminalFreeTools = map[string]bool{
 	ExploitFinderToolName:   true,
 	AttackSurfaceToolName:   true,
 	TechniqueLedgerToolName: true,
+	WebSessionToolName:      true,
+	InjectionHuntToolName:   true,
+	AuthAttackToolName:      true,
+	WAFDetectToolName:       true,
+	GoalManagerToolName:     true,
 }
 
 // attachOffensiveTools registers the offensive toolkit (Payload Engine v2,
@@ -819,6 +824,7 @@ func (fte *flowToolsExecutor) attachOffensiveTools(
 			SwarmAttackToolName,
 			ValidateExploitToolName,
 			TechniqueLedgerToolName,
+			GoalManagerToolName,
 		}
 	case offensivePrimary:
 		names = []string{
@@ -828,6 +834,7 @@ func (fte *flowToolsExecutor) attachOffensiveTools(
 			PayloadEngineToolName,
 			SwarmAttackToolName,
 			TechniqueLedgerToolName,
+			GoalManagerToolName,
 		}
 	default:
 		names = offensiveToolNames

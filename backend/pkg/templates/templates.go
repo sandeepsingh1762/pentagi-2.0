@@ -89,6 +89,7 @@ var PromptVariables = map[PromptType][]string{
 		"CurrentTime",
 		"ToolPlaceholder",
 		"UserFiles",
+		"WebSearchToolName",
 		"PayloadEngineToolName",
 		"DNSEnumToolName",
 		"ExploitFinderToolName",
@@ -96,6 +97,7 @@ var PromptVariables = map[PromptType][]string{
 		"SwarmAttackToolName",
 		"ValidateExploitToolName",
 		"TechniqueLedgerToolName",
+		"GoalManagerToolName",
 	},
 	PromptTypeAssistant: {
 		"SearchToolName",
@@ -168,6 +170,11 @@ var PromptVariables = map[PromptType][]string{
 		"ValidateExploitToolName",
 		"TechniqueLedgerToolName",
 		"SploitusToolName",
+		"WebSessionToolName",
+		"InjectionHuntToolName",
+		"AuthAttackToolName",
+		"WAFDetectToolName",
+		"GoalManagerToolName",
 	},
 	PromptTypeQuestionPentester: {
 		"Question",
@@ -200,6 +207,7 @@ var PromptVariables = map[PromptType][]string{
 		"SwarmAttackToolName",
 		"ValidateExploitToolName",
 		"TechniqueLedgerToolName",
+		"GoalManagerToolName",
 	},
 	PromptTypeQuestionCoder: {
 		"Question",

@@ -78,6 +78,11 @@ func CreateDummyTemplateData() map[string]any {
 		"SwarmAttackToolName":     tools.SwarmAttackToolName,
 		"ValidateExploitToolName": tools.ValidateExploitToolName,
 		"TechniqueLedgerToolName": tools.TechniqueLedgerToolName,
+		"WebSessionToolName":      tools.WebSessionToolName,
+		"InjectionHuntToolName":   tools.InjectionHuntToolName,
+		"AuthAttackToolName":      tools.AuthAttackToolName,
+		"WAFDetectToolName":       tools.WAFDetectToolName,
+		"GoalManagerToolName":     tools.GoalManagerToolName,
 
 		// Summarization related - using constants from proper packages
 		"SummarizationToolName":   cast.SummarizationToolName,

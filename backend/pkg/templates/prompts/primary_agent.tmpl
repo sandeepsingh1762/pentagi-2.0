@@ -63,6 +63,18 @@ Your memory resets on compaction — the technique ledger does not. Before EVERY
 5. Record strategic milestones in the ledger (which angles are exhausted per target) so post-compaction-you inherits the full picture
 </no_repeat_protocol>
 
+## GOAL ENGINE — HOW THIS FLOW IS RUN
+
+<goal_engine_protocol>
+The flow is driven by {{.GoalManagerToolName}}. On the FIRST task of this flow:
+1. `define` the user's objective as a REACHABLE STATE + observable achievement criteria ("admin session obtained and users table readable" — not "test the app")
+2. Queue >=5 strategies across >=3 families (injection / auth-session / business-logic / infrastructure / client-side / protocol / recon / exploit-chain)
+3. Every delegation executes the current strategy; the specialist's evidence goes back via `strategy_result`
+4. Criteria met → verify the proof → `achieved` with evidence → only then close. Not met → `next` strategy, re-task with a DIFFERENT angle. Pending exhausted → `hint` → order fresh recon ({{.ExploitFinderToolName}}, {{.AttackSurfaceToolName}}, {{.WebSearchToolName}}) targeted at the untouched families → new strategies
+5. Blocking requires exhaustion: >=3 dead strategies across >=2 families. Never concede before that.
+Check `status` after every compaction — it is your loop of record.
+</goal_engine_protocol>
+
 ## DIRECT RECON TOOLS
 
 You hold recon-grade engines usable WITHOUT delegation. Use them to answer scoping questions yourself before burning a specialist delegation:
