@@ -297,6 +297,12 @@ func (fp *flowProvider) GetCoderHandler(ctx context.Context, taskID, subtaskID *
 				"CurrentTime":             getCurrentTime(),
 				"ToolPlaceholder":         ToolPlaceholder,
 				"UserFiles":               fp.userFilesListing(),
+				"PayloadEngineToolName":   tools.PayloadEngineToolName,
+				"RawHTTPToolName":         tools.RawHTTPToolName,
+				"ProxyIntruderToolName":   tools.ProxyIntruderToolName,
+				"SwarmAttackToolName":     tools.SwarmAttackToolName,
+				"ValidateExploitToolName": tools.ValidateExploitToolName,
+				"TechniqueLedgerToolName": tools.TechniqueLedgerToolName,
 			},
 		}
 
@@ -635,6 +641,20 @@ func (fp *flowProvider) GetPentesterHandler(ctx context.Context, taskID, subtask
 				"CurrentTime":             getCurrentTime(),
 				"ToolPlaceholder":         ToolPlaceholder,
 				"UserFiles":               fp.userFilesListing(),
+				"PayloadEngineToolName":   tools.PayloadEngineToolName,
+				"RawHTTPToolName":         tools.RawHTTPToolName,
+				"SmuggleProbeToolName":    tools.SmuggleProbeToolName,
+				"ProxyStartToolName":      tools.ProxyStartToolName,
+				"ProxyHistoryToolName":    tools.ProxyHistoryToolName,
+				"ProxyStopToolName":       tools.ProxyStopToolName,
+				"ProxyIntruderToolName":   tools.ProxyIntruderToolName,
+				"DNSEnumToolName":         tools.DNSEnumToolName,
+				"ExploitFinderToolName":   tools.ExploitFinderToolName,
+				"AttackSurfaceToolName":   tools.AttackSurfaceToolName,
+				"SwarmAttackToolName":     tools.SwarmAttackToolName,
+				"ValidateExploitToolName": tools.ValidateExploitToolName,
+				"TechniqueLedgerToolName": tools.TechniqueLedgerToolName,
+				"SploitusToolName":        tools.SploitusToolName,
 			},
 		}
 

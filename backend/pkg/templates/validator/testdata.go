@@ -64,6 +64,21 @@ func CreateDummyTemplateData() map[string]any {
 		"PatchFlowSubtasksToolName":  tools.PatchFlowSubtasksToolName,
 		"WaitFlowCompletionToolName": tools.WaitFlowCompletionToolName,
 
+		// Offensive toolkit
+		"PayloadEngineToolName":   tools.PayloadEngineToolName,
+		"RawHTTPToolName":         tools.RawHTTPToolName,
+		"SmuggleProbeToolName":    tools.SmuggleProbeToolName,
+		"ProxyStartToolName":      tools.ProxyStartToolName,
+		"ProxyHistoryToolName":    tools.ProxyHistoryToolName,
+		"ProxyStopToolName":       tools.ProxyStopToolName,
+		"ProxyIntruderToolName":   tools.ProxyIntruderToolName,
+		"DNSEnumToolName":         tools.DNSEnumToolName,
+		"ExploitFinderToolName":   tools.ExploitFinderToolName,
+		"AttackSurfaceToolName":   tools.AttackSurfaceToolName,
+		"SwarmAttackToolName":     tools.SwarmAttackToolName,
+		"ValidateExploitToolName": tools.ValidateExploitToolName,
+		"TechniqueLedgerToolName": tools.TechniqueLedgerToolName,
+
 		// Summarization related - using constants from proper packages
 		"SummarizationToolName":   cast.SummarizationToolName,
 		"SummarizedContentPrefix": csum.SummarizedContentPrefix,

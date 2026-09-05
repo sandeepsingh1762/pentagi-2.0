@@ -117,6 +117,19 @@ var toolsTypeMapping = map[string]ToolType{
 	SearxngToolName:            SearchNetworkToolType,
 	SploitusToolName:           SearchNetworkToolType,
 	WebSearchToolName:          SearchNetworkToolType,
+	PayloadEngineToolName:      EnvironmentToolType,
+	RawHTTPToolName:            EnvironmentToolType,
+	SmuggleProbeToolName:       EnvironmentToolType,
+	ProxyStartToolName:         EnvironmentToolType,
+	ProxyHistoryToolName:       EnvironmentToolType,
+	ProxyStopToolName:          EnvironmentToolType,
+	ProxyIntruderToolName:      EnvironmentToolType,
+	DNSEnumToolName:            EnvironmentToolType,
+	ExploitFinderToolName:      SearchNetworkToolType,
+	AttackSurfaceToolName:      EnvironmentToolType,
+	SwarmAttackToolName:        EnvironmentToolType,
+	ValidateExploitToolName:    EnvironmentToolType,
+	TechniqueLedgerToolName:    StoreVectorDbToolType,
 	SearchToolName:             AgentToolType,
 	SearchResultToolName:       StoreAgentResultToolType,
 	EnricherResultToolName:     StoreAgentResultToolType,
@@ -452,6 +465,116 @@ var registryDefinitions = map[string]llms.FunctionDefinition{
 			"use " + GetFlowStatusToolName + " first to confirm the flow state before calling this tool. " +
 			"On return, always call " + GetFlowStatusToolName + " with detail='summary' to inspect the final status.",
 		Parameters: reflector.Reflect(&WaitFlowCompletionAction{}),
+	},
+
+	// ------------------------------------------------------------------------
+	// Offensive toolkit (Payload Engine v2 + HTTP attack tooling)
+	// ------------------------------------------------------------------------
+
+	PayloadEngineToolName: {
+		Name: PayloadEngineToolName,
+		Description: "Payload Engine v2 — categorized, context-aware payload generation for authorized testing. " +
+			"Curated sets for SQLi, XSS, SSRF, SSTI, command injection, path traversal, XXE, NoSQL, LDAP, JWT, " +
+			"deserialization, prototype pollution, GraphQL abuse, request smuggling, cache poisoning, auth bypass, " +
+			"IDOR and more, with encoding/mutation engines (double-URL, unicode, comment insertion, case randomization) " +
+			"for filter and WAF evasion. Use action=categories to discover the catalog, then action=generate to get " +
+			"payloads adapted to the injection context (query/json/header/path/xml/cookie). Fire them with raw_http or proxy_intruder.",
+		Parameters: reflector.Reflect(&PayloadEngineAction{}),
+	},
+	RawHTTPToolName: {
+		Name: RawHTTPToolName,
+		Description: "Raw-socket HTTP client with byte-level wire control (Repeater-style). When 'raw_request' is set it is " +
+			"transmitted VERBATIM — no header normalization, no re-chunking — enabling header injection, desync, cache " +
+			"deception, HTTP/1.0 downgrade, and CRLF probes that normal HTTP libraries silently defeat. Returns the full " +
+			"response with per-phase timing (connect/TTFB/total). Use for single crafted requests; use proxy_intruder for batches.",
+		Parameters: reflector.Reflect(&RawHTTPAction{}),
+	},
+	SmuggleProbeToolName: {
+		Name: SmuggleProbeToolName,
+		Description: "Runs the HTTP request-smuggling detection suite (CL.TE, TE.CL, TE.TE duplicates/obfuscation, " +
+			"Content-Length conflicts) against one target and reports per-variant verdicts with timing-shift and " +
+			"marker-reflection analysis. Use when a front-end proxy/CDN sits in front of the target.",
+		Parameters: reflector.Reflect(&SmuggleProbeAction{}),
+	},
+	ProxyStartToolName: {
+		Name: ProxyStartToolName,
+		Description: "Starts an intercepting HTTP proxy (MITM) for this flow: plain HTTP traffic routed through it is " +
+			"captured in full (method, URL, headers, body, response), HTTPS CONNECT tunnels are relayed with host/SNI " +
+			"visibility. Supports include/exclude scope regexes. Point flow-container traffic at it via http_proxy, " +
+			"then review with proxy_history. It is the interception layer for observing what tools inside the container actually send.",
+		Parameters: reflector.Reflect(&ProxyStartAction{}),
+	},
+	ProxyHistoryToolName: {
+		Name: ProxyHistoryToolName,
+		Description: "Shows the traffic captured by a running proxy engine (newest first) with optional regex filtering " +
+			"over method/host/path/status and bodies — the HTTP history table of the intercepting proxy.",
+		Parameters: reflector.Reflect(&ProxyHistoryAction{}),
+	},
+	ProxyStopToolName: {
+		Name:        ProxyStopToolName,
+		Description: "Stops a running intercepting proxy engine and discards its history.",
+		Parameters:  reflector.Reflect(&ProxyStopAction{}),
+	},
+	ProxyIntruderToolName: {
+		Name: ProxyIntruderToolName,
+		Description: "Position-based fuzzing engine (Intruder-style): give a raw request template with §...§ markers " +
+			"and payload sets; requests are fired in parallel with configurable attack modes — sniper (each position " +
+			"alone), battering_ram (same payload everywhere), pitchfork (parallel sets), cluster_bomb (full cartesian " +
+			"product) — and results are sorted by status/length so outliers pop. Payloads can come from payload_engine " +
+			"categories (e.g. payload_category=sqli) or explicit lists. Use for login brute force, parameter fuzzing, " +
+			"injection probing, endpoint enumeration.",
+		Parameters: reflector.Reflect(&ProxyIntruderAction{}),
+	},
+	DNSEnumToolName: {
+		Name: DNSEnumToolName,
+		Description: "DNS enumeration: full record sweep (A/AAAA/CNAME/MX/NS/TXT/SOA), subdomain brute force over a " +
+			"high-yield built-in wordlist (wildcard-aware), zone transfer (AXFR) attempts against every NS, reverse " +
+			"PTR lookups, and SRV service discovery. Run it at the start of recon on any domain-scope target; feed " +
+			"discovered hosts into attack_surface and the terminal tools.",
+		Parameters: reflector.Reflect(&DNSEnumAction{}),
+	},
+	ExploitFinderToolName: {
+		Name: ExploitFinderToolName,
+		Description: "CVE and exploit intelligence: searches NVD for vulnerabilities, then enriches each result with " +
+			"FIRST EPSS exploitation probability and CISA KEV known-exploited status (including ransomware campaign use), " +
+			"and ranks them by real-world exploitation likelihood. cve=<ID> does a full deep-dive of one CVE. Use it to " +
+			"prioritize which vulnerability to attack first; follow up with web_search (mode=exploit) or sploitus for " +
+			"public PoC code.",
+		Parameters: reflector.Reflect(&ExploitFinderAction{}),
+	},
+	AttackSurfaceToolName: {
+		Name: AttackSurfaceToolName,
+		Description: "Attack surface mapper: crawls the target origin (depth/budget controlled), extracts pages, links, " +
+			"forms with input names, query parameters and JS-referenced API endpoints, fingerprints technologies from " +
+			"headers and body markers, and runs high-signal exposure checks (.git, .env, swagger/openapi, actuator, " +
+			"debug endpoints, backup dumps). Produces the endpoint+parameter inventory that drives payload selection.",
+		Parameters: reflector.Reflect(&AttackSurfaceAction{}),
+	},
+	SwarmAttackToolName: {
+		Name: SwarmAttackToolName,
+		Description: "Parallel attack execution: runs up to 4 shell commands CONCURRENTLY in the flow container " +
+			"(recon + fuzzer + scanner + exploiter in one call) and merges their outputs. Design workers around ONE " +
+			"objective with disjoint angles. Cuts sequential nmap/ffuf/nuclei chains into a single parallel strike. " +
+			"Use whenever the next step has 2+ independent probes.",
+		Parameters: reflector.Reflect(&SwarmAttackAction{}),
+	},
+	ValidateExploitToolName: {
+		Name: ValidateExploitToolName,
+		Description: "Independent exploit validation — the false-positive killer. Supply the claim, your evidence, and " +
+			"probe commands whose success is IMPOSSIBLE unless the vulnerability is real (known-content extraction, " +
+			"marker echo through an RCE, canary reads). Probes are repeated N times; the verdict is VERIFIED only on " +
+			"reproduced regex-matched proof. ALWAYS validate before reporting any exploitation claim; REFUTED findings " +
+			"must not appear in reports.",
+		Parameters: reflector.Reflect(&ValidateExploitAction{}),
+	},
+	TechniqueLedgerToolName: {
+		Name: TechniqueLedgerToolName,
+		Description: "Persistent technique ledger for this flow — your memory of everything tried and how it went, " +
+			"surviving context compaction. record: log every technique attempt (worked/failed/partial/blocked) with " +
+			"evidence. recall: search past attempts BEFORE planning the next move. summary: full digest. " +
+			"HARD RULE: never repeat a failed or blocked technique without a materially different angle; " +
+			"always check recall first and record every attempt after.",
+		Parameters: reflector.Reflect(&TechniqueLedgerAction{}),
 	},
 }
 
